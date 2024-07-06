@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>espコントローラー</title>
+    <style>
+    html,body{
+      overflow:hidden;
+      overflow-x:hidden;
+      user-select: none;
+      -webkit-user-select: none; 
+      margin:0;
+	  padding:0;
+    }
+    .button_box{
+        position: absolute;
+        width: 100px;
+        height: 50px;
+        line-height:50px;
+        text-align:center;
+        z-index: 2;
+        background-color: gray;
+    }
+    .canvas{
+        position: absolute;
+        margin: auto;
+        z-index: 0;
+    }
+    .button{
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: gray;
+        line-height:50px;
+        text-align:center;
+        z-index: 2;
+    }
+    .joy_pad{
+        position: absolute;
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: black;
+        z-index: 2;
+    }
+    .joy_circle{
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    text-align:center;
+    line-height: 80px;
+    border-radius: 50%;
+    border: solid 3px black;
+    z-index: 1;
+    }
+    .checkbox{
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        width: 30px;
+        height: 30px;
+    }
+    </style>
+</head>
+<body onselectstart="return false">
+    <canvas id="canvas" class="canvas" style="background-color:yellow;"></canvas>
+    <div class="joy_pad" id="joy"></div>
+    <div class="joy_circle" id="joy_circle"></div>
+    <div class="joy_pad" id="joy2"></div>
+    <div class="joy_circle" id="joy_circle2"></div>
+    <div class="button" id="b0"><span>1</span></div>
+    <div class="button" id="b1"><span>2</span></div>
+    <div class="button" id="b2"><span>3</span></div>
+    <div class="button" id="b3"><span>4</span></div>
+    <div class="button" id="b4"><span>A</span></div>
+    <div class="button" id="b5"><span>B</span></div>
+    <div class="button" id="b6"><span>C</span></div>
+    <div class="button" id="b7"><span>D</span></div>
+    <div class="button_box" id="bb1"><span>L</span></div>
+    <div class="button_box" id="bb2"><span>R</span></div>
+    <input type="checkbox" class="checkbox" id="checkbox" onchange="box_checked();">なにかを起動</input>
+    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+    <script>
+        var socket =new WebSocket("ws://192.168.35.205:81");
+        var canvas = document.getElementById('canvas');
+        var joy = document.getElementById('joy');
+        var joy_circle = document.getElementById('joy_circle');
+        var joy2 = document.getElementById('joy2');
+        var joy_circle2 = document.getElementById('joy_circle2');
+        var buttons =document.getElementsByClassName("button");
+        var lr_button=document.getElementsByClassName("button_box");
+        var jp=joy.getBoundingClientRect();
+        var jp2=joy2.getBoundingClientRect();
+        function expandCanvas(){
+            var b = document.body;
+            var d = document.documentElement;
+            canvas.width = Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth)*(2/5);
+            canvas.height = Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight)*(2/5);
+            canvas.style.top = String(Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight)-canvas.height*2)+"px";
+            canvas.style.left = String(Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth)*(1/2)-canvas.width*(3/4)-10)+"px";
+        }
+        function expandjoy(){
+            var b = document.body;
+            var d = document.documentElement;
+            joy.style.top = String(Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight)*(3/5))+"px";
+            joy.style.left = String(jp.width)+"px";
+        }
+        function expandjoy_circle(){
+            var b = document.body;
+            var d = document.documentElement;
+            let width_max=Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth);
+            let height_max=Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight);
+            joy_circle.style.top = String(height_max*(3/5)-12)+"px";
+            joy_circle.style.left = String(jp.width-12)+"px";
+        }
+        function expandjoy2(){
+            var b = document.body;
+            var d = document.documentElement;
+            let width_max=Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth);
+            let height_max=Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight);
+            joy2.style.top = String(Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight)*(3/5))+"px";
+            joy2.style.left = String(width_max-jp2.width*(5/3)-12)+"px";
+        }
+        function expandjoy_circle2(){
+            var b = document.body;
+            var d = document.documentElement;
+            let width_max=Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth);
+            let height_max=Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight);
+            joy_circle2.style.top = String(height_max*(3/5)-12)+"px";
+            joy_circle2.style.left = String(width_max-jp2.width*(5/3)-24)+"px";
+        }
+        function expendbutton(){
+            var b = document.body;
+            var d = document.documentElement;
+            let width_max=Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth);
+            let height_max=Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight);
+            for (let index = 0; index < buttons.length; index++) {
+                const element = buttons[index];
+                if (index<4){
+                    element.style.top=String(height_max*(1/4)+((width_max*(1/25))*Math.sin(Math.PI*(index/2))))+"px";
+                    element.style.left=String((jp.width+24)+(width_max*(1/25)*Math.cos(Math.PI*(index/2))))+"px";
+                }
+                else{
+                    element.style.top=String(height_max*(1/4)+((width_max*(1/25))*Math.sin(Math.PI*(index/2))))+"px";
+                    element.style.left=String((width_max-jp.width*(5/3)+12)+(width_max*(1/25)*Math.cos(Math.PI*(index/2))))+"px";
+                }
+                
+            }
+        }
+        function expendlr_button(){
+            var b = document.body;
+            var d = document.documentElement;
+            let width_max=Math.max(b.clientWidth , b.scrollWidth, d.scrollWidth, d.clientWidth);
+            let height_max=Math.max(b.clientHeight , b.scrollHeight, d.scrollHeight, d.clientHeight);
+            for(let index=0;index<lr_button.length;index+=1){
+                let element=lr_button[index];
+                let element_pos=element.getBoundingClientRect();
+                element.style.top=String(height_max*(1/20))+"px";
+                if(!index) element.style.left=String(width_max*(1/2)+element_pos.width*(-4))+"px";
+                else element.style.left=String(width_max*(1/2)+element_pos.width*3)+"px";
+            }
+        }
+        expendlr_button();
+        expandCanvas();
+        expandjoy();
+        expandjoy_circle();
+        expandjoy2();
+        expandjoy_circle2();
+        expendbutton();
+        jp=joy.getBoundingClientRect();
+        jp2=joy2.getBoundingClientRect();
+        window.addEventListener('DOMContentLoaded', init);
+        function init() {
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas
+        });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(canvas.width*(4/5), canvas.height);
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xF0F0F0 );
+        const camera = new THREE.PerspectiveCamera(45, canvas.width / canvas.height);
+        camera.position.set(0, 0, +1000);
+        const geometry = new THREE.BoxGeometry(canvas.width*(1/6),canvas.width*(1/6), canvas.width*(1/6));
+        const material = new THREE.MeshNormalMaterial();
+        const box = new THREE.Mesh(geometry, material);
+        scene.add(box);
+        tick();
+        function tick() {
+            renderer.render(scene, camera); 
+            requestAnimationFrame(tick);
+        }
+        }
+        joy.addEventListener("touchstart", function(e){
+        e.preventDefault();
+        let touches=e.touches;
+        var x,y;
+        for(let touch in touches){
+            if(touches[touch].target.id=="joy"){
+                x = touches[touch].pageX;
+                y = touches[touch].pageY;
+                break;
+            }
+        }
+        const v1 = { x: 1, y: 0 };
+        if(((x-jp.x)**2+(y-jp.y)**2)<2500){
+            joy.style.top=y+"px";
+            joy.style.left=x+"px";
+        }
+        else{
+            const cross=(v1.x*(y-jp.y))-(v1.y*(x-jp.x));
+            const dot=(v1.x*(x-jp.x))+(v1.y*(y-jp.y));
+            const abs=Math.sqrt((x-jp.x)**2+(y-jp.y)**2);
+            const abs2=Math.sqrt(v1.x**2+v1.y**2);
+            const cos = dot / (abs2 * abs);
+            const sin = cross / (abs2 * abs);
+            const radians = Math.acos(cos);
+            const newradians = sin > 0 ? radians: -radians;
+            joy.style.top=(jp.y+50*Math.sin(newradians))+"px";
+            joy.style.left=(jp.x+50*Math.cos(newradians))+"px";
+        }
+        });
+        joy.addEventListener("touchmove", function(e){
+        e.preventDefault();
+        let touches=e.touches;
+        var x,y;
+        for(let touch in touches){
+            if(touches[touch].target.id=="joy"){
+                x = touches[touch].pageX;
+                y = touches[touch].pageY;
+                break;
+            }
+        }
+        const v1 = { x: 1, y: 0 };
+        if(((x-jp.x)**2+(y-jp.y)**2)<2500){
+            joy.style.top=y+"px";
+            joy.style.left=x+"px";
+            socket.send(String(Math.round((x-jp.x)*2))+String(-Math.round((y-jp.y)*2)));
+        }
+        else{
+            const cross=(v1.x*(y-jp.y))-(v1.y*(x-jp.x));
+            const dot=(v1.x*(x-jp.x))+(v1.y*(y-jp.y));
+            const abs=Math.sqrt((x-jp.x)**2+(y-jp.y)**2);
+            const abs2=Math.sqrt(v1.x**2+v1.y**2);
+            const cos = dot / (abs2 * abs);
+            const sin = cross / (abs2 * abs);
+            const radians = Math.acos(cos);
+            const newradians = sin > 0 ? radians: -radians;
+            joy.style.top=(jp.y+50*Math.sin(newradians))+"px";
+            joy.style.left=(jp.x+50*Math.cos(newradians))+"px";
+            socket.send(String(Math.round(100*Math.cos(newradians)))+String(Math.round(-100*Math.sin(newradians))));
+        }
+        });
+        joy.addEventListener("touchend", function(e){
+        e.preventDefault();
+        joy.style.top=jp.y+"px";
+        joy.style.left=jp.x+"px";
+        socket.send("0,0");
+        });
+        joy2.addEventListener("touchstart", function(e){
+        e.preventDefault();
+        let touches=e.touches;
+        let x,y;
+        for(let touch in touches){
+            if(touches[touch].target.id=="joy2"){
+                x = touches[touch].pageX;
+                y = touches[touch].pageY;
+                break;
+            }
+        }
+        const v1 = { x: 1, y: 0 };
+        if(((x-jp2.x)**2+(y-jp2.y)**2)<2500){
+            joy2.style.top=y+"px";
+            joy2.style.left=x+"px";
+        }
+        else{
+            const cross=(v1.x*(y-jp2.y))-(v1.y*(x-jp2.x));
+            const dot=(v1.x*(x-jp2.x))+(v1.y*(y-jp2.y));
+            const abs=Math.sqrt((x-jp2.x)**2+(y-jp2.y)**2);
+            const abs2=Math.sqrt(v1.x**2+v1.y**2);
+            const cos = dot / (abs2 * abs);
+            const sin = cross / (abs2 * abs);
+            const radians = Math.acos(cos);
+            const newradians = sin > 0 ? radians: -radians;
+            joy2.style.top=(jp2.y+50*Math.sin(newradians))+"px";
+            joy2.style.left=(jp2.x+50*Math.cos(newradians))+"px";
+        }
+        });
+        joy2.addEventListener("touchmove", function(e){
+        e.preventDefault();
+        let touches=e.touches;
+        var x,y;
+        for(let touch in touches){
+            if(touches[touch].target.id=="joy2"){
+                x = touches[touch].pageX;
+                y = touches[touch].pageY;
+                break;
+            }
+        }
+        const v1 = { x: 1, y: 0 };
+        if(((x-jp2.x)**2+(y-jp2.y)**2)<2500){
+            joy2.style.top=y+"px";
+            joy2.style.left=x+"px";
+            socket.send(String(Math.round((x-jp2.x)*2))+"[deg/s]");
+        }
+        else{
+            const cross=(v1.x*(y-jp2.y))-(v1.y*(x-jp2.x));
+            const dot=(v1.x*(x-jp2.x))+(v1.y*(y-jp2.y));
+            const abs=Math.sqrt((x-jp2.x)**2+(y-jp2.y)**2);
+            const abs2=Math.sqrt(v1.x**2+v1.y**2);
+            const cos = dot / (abs2 * abs);
+            const sin = cross / (abs2 * abs);
+            const radians = Math.acos(cos);
+            const newradians = sin > 0 ? radians: -radians;
+            joy2.style.top=(jp2.y+50*Math.sin(newradians))+"px";
+            joy2.style.left=(jp2.x+50*Math.cos(newradians))+"px";
+            socket.send(String(Math.round(100*Math.cos(newradians)))+"[deg/s]");
+        }
+        });
+        joy2.addEventListener("touchend", function(e){
+        e.preventDefault();
+        joy2.style.top=jp2.y+"px";
+        joy2.style.left=jp2.x+"px";
+        socket.send("0,0");
+        });
+        for(let idx=0;idx<buttons.length;idx+=1){
+            buttons[idx].addEventListener("touchstart",function(e){
+                let button=buttons[idx];
+                button.style.backgroundColor="black";
+            });
+            buttons[idx].addEventListener("touchend",function(e){
+                let button=buttons[idx];
+                button.style.backgroundColor="gray";
+                if(idx==4){
+                    socket.send("a");
+                }
+                else if(idx==5){
+                    socket.send("b");
+                }
+                else if(idx==6){
+                    socket.send("c");
+                }
+                else if(idx==7){
+                    socket.send("d");
+                }
+                else socket.send(String(idx+1));
+
+            });
+        }
+        for(let idx=0;idx<lr_button.length;idx+=1){
+            lr_button[idx].addEventListener("touchstart",function(e){
+                let button=lr_button[idx];
+                button.style.backgroundColor="black";
+            });
+            lr_button[idx].addEventListener("touchend",function(e){
+                let button=lr_button[idx];
+                button.style.backgroundColor="gray";
+                if(idx==0){
+                    socket.send("l");
+                }
+                else socket.send("r")
+            });
+        }
+        function box_checked(){
+            if(document.getElementById("checkbox").checked){
+                socket.send("true");
+            }
+            else{
+                socket.send("false");
+            }
+        }
+        function disableScroll(event) {
+          event.preventDefault();
+        }
+        document.addEventListener('touchmove', disableScroll, { passive: false });
+        document.addEventListener("dblclick", function(e){ e.preventDefault();}, { passive: false });
+    </script>
+</body>
+</html>
